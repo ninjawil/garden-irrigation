@@ -23,7 +23,6 @@ function displayIrrigation() {
 	$('#sidebar').show();
 	$('#main').removeClass('col-sm-12').addClass('col-sm-10');
 
-
     // Set up chart screen sections
     $('<div id="chart-section"></div>').appendTo('#graph-container');
     $('<div id="irrig-input-bar-section"></div>').appendTo('#graph-container');
