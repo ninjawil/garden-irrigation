@@ -17,7 +17,6 @@ import math
 
 # Application modules
 import rrd_tools
-import settings as s
 import toolbox.maker_ch as maker_ch
 import toolbox.log as log
 import toolbox.check_process as check_process
@@ -201,18 +200,6 @@ def main():
         sys.exit()
 
 
-    #---------------------------------------------------------------------------
-    # CHECK RRD FILE
-    #---------------------------------------------------------------------------
-    rrd = rrd_tools.RrdFile('{fd1}/data/{fl}'.format(fd1= folder_loc,
-                                                    fl= s.RRDTOOL_RRD_FILE))
-        
-    if not rrd.check_ds_list_match(list(s.SENSOR_SET.keys())):
-        logger.error('Data sources in RRD file does not match set up.')
-        logger.error('Exiting...')
-        sys.exit()
-
-
     #-------------------------------------------------------------------
     # GET DATA FROM CONFIG FILE
     #-------------------------------------------------------------------
@@ -299,9 +286,18 @@ def main():
 
             logger.info('previous_depth = {value}'.format(value= previous_depth))
             
-            # Fetch previous values from rrd
+            # Fetch previous values from xml
+            year_current = datetime.datetime.now().year
+            base_folder  = folder_loc.replace('/garden-irrigation/', '')
+            year_data = rrd_tools.xml_to_dict('{fl}/weather/data/wd_all_{year}.xml'.format(fl= base_folder, year= year_current))
+
+            print year_data['data']
+
             actual_temp_mean   = rrd.fetch_list('AVERAGE', 'outside_temp', days= 2)
             actual_precip      = rrd.fetch_list('MAX', 'precip_acc', days= 2)
+
+            # actual_temp_mean   = rrd.fetch_list('AVERAGE', 'outside_temp', days= 2)
+            # actual_precip      = rrd.fetch_list('MAX', 'precip_acc', days= 2)
 
             logger.info('actual_temp_mean = {value}'.format(value= actual_temp_mean))
             logger.info('actual_precip = {value}'.format(value= actual_precip))
