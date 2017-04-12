@@ -48,7 +48,7 @@ function getIrrigData(functionCall, args) {
         success: function(config_data) {            
             $.ajax({
                 cache: false,
-                url: 'weather_data/irrigation.json',
+                url: 'irrigation_data/irrigation.json',
                 dataType: "json",
                 success: function(chart_data) {
                     args.push(config_data);
