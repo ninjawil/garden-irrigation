@@ -12,11 +12,12 @@ import collections
 import urllib2
 import json
 import math
+import getopt
 
 # Third party modules
 
 # Application modules
-import rrd_tools
+from rrd_tools import xml_to_dict
 import toolbox.maker_ch as maker_ch
 import toolbox.log as log
 import toolbox.check_process as check_process
@@ -199,6 +200,31 @@ def main():
         logger.error(other_script_found)
         sys.exit()
 
+    #---------------------------------------------------------------------------
+    # CHECK PASSED ARGUMENTS FOR NUMBER OF DAYS TO CALC
+    #--------------------------------------------------------------------------- 
+    days_to_run = -3
+    user_depth = 0
+    
+    try:
+        opts, args = getopt.getopt(sys.argv[1:],'id:l:',
+            ['irrigated','days=','depth='])
+    except getopt.GetoptError:
+        usage()
+        sys.exit(2)
+
+    for opt, arg in opts:
+        if opt in ('-d', '--days'):
+            days_to_run = -int(arg) - 2
+            logger.info('Calculating current depth since {days} days'.format(days= days_to_run))
+            continue
+        if opt in ('-l', '--depth'):
+            user_depth = int(arg)
+            logger.info('Previous depth to use {depth}mm'.format(depth= user_depth))
+            continue
+
+
+
 
     #-------------------------------------------------------------------
     # GET DATA FROM CONFIG FILE
@@ -256,8 +282,17 @@ def main():
             web_precip.append(int(web_forecast['forecast']['simpleforecast']['forecastday'][i]['qpf_allday']['mm']))
             web_precip_chance.append(1)
         
+        # TEST CASE:
+        # web_temp_high = [12, 11, 12, 11, 13, 13, 14, 12, 13, 14]
+        # web_temp_low = [4, 4, 4, 3, 6, 4, 6, 6, 4, 6]
+        # web_precip = [0, 0, 2, 0, 1, 0, 4, 3, 0, 0]
+        # web_precip_chance = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+
         logger.info('High temp {temps}'.format(temps=web_temp_high))
         logger.info('Low temp  {temps}'.format(temps=web_temp_low))
+        logger.info('Precip amount  {rain}'.format(rain=web_precip))
+        logger.info('Precip chance  {rain}'.format(rain=web_precip_chance))
+
         
         irrigation_amount = 0
 
@@ -275,6 +310,7 @@ def main():
         try:
             with open('{fl}/data/irrigation.json'.format(fl= folder_loc), 'r') as f:
                 irrig_data = json.load(f)
+            logger.info('Water level file found.')
 
             if len(sys.argv) > 1:
                 if '--irrigated' in sys.argv:
@@ -282,46 +318,62 @@ def main():
                     irrigation_amount = irrig_data['irrig_amount'][0]
                     logger.info('User request update')
 
-            previous_depth = irrig_data['depth'][0]
+            print user_depth
+
+            if user_depth == 0:
+                previous_depth = irrig_data['depth'][0]
+            else:
+                previous_depth = user_depth
 
             logger.info('previous_depth = {value}'.format(value= previous_depth))
             
             # Fetch previous values from xml
-            year_current = datetime.datetime.now().year
+            date_current = datetime.datetime.utcnow()
             base_folder  = folder_loc.replace('/garden-irrigation/', '')
-            year_data = rrd_tools.xml_to_dict('{fl}/weather/data/wd_all_{year}.xml'.format(fl= base_folder, year= year_current))
+            filename = '{fl}/weather/data/wd_all_{year}.xml'.format(fl= base_folder, 
+                                                                    year= date_current.year)
+            year_data = xml_to_dict(filename)
 
-            print year_data['data']
+            today = int(date_current.strftime("%s"))
 
-            actual_temp_mean   = rrd.fetch_list('AVERAGE', 'outside_temp', days= 2)
-            actual_precip      = rrd.fetch_list('MAX', 'precip_acc', days= 2)
+            wd = year_data['data']
+            dates = sorted(wd.keys())
 
-            # actual_temp_mean   = rrd.fetch_list('AVERAGE', 'outside_temp', days= 2)
-            # actual_precip      = rrd.fetch_list('MAX', 'precip_acc', days= 2)
+            if today - dates[-1] > 86400:
+                logger.error('Weather data out of date. Exiting...')
+                sys.exit()
 
-            logger.info('actual_temp_mean = {value}'.format(value= actual_temp_mean))
-            logger.info('actual_precip = {value}'.format(value= actual_precip))
+            for d in range(days_to_run, -2, 1):
+                idx = year_data['meta']['legend'].index('outside_temp')
+                actual_temp_mean   = float(wd[dates[d]][idx])
 
-            # Calculate Extraterrestrial radiation for daily periods (Ra)
-            ra = ra_calc(j-1, lat_rad)
+                idx = year_data['meta']['legend'].index('precip_acc_max')
+                actual_precip      = float(wd[dates[d]][idx])
 
-            # Convert Ra [MJ/m^2/day] to Re [J/m^2/day]
-            eto  = eto_tbase_calc(ra* 1000000, actual_temp_mean[-1])
-            etc  = eto * kc
-            pe   = effective_rainfall_calc(actual_precip[-1])
+                logger.info('actual_temp_mean = {value}'.format(value= actual_temp_mean))
+                logger.info('actual_precip = {value}'.format(value= actual_precip))
 
-            current_depth = previous_depth - etc + pe + irrigation_amount
+                # Calculate Extraterrestrial radiation for daily periods (Ra)
+                ra = ra_calc(j-1, lat_rad)
 
-            taw, raw = readily_available_water_calc(soil_type, root_depth, etc)
+                # Convert Ra [MJ/m^2/day] to Re [J/m^2/day]
+                eto  = eto_tbase_calc(ra* 1000000, actual_temp_mean)
+                etc  = eto * kc
+                pe   = effective_rainfall_calc(actual_precip)
 
-            if current_depth > raw:
-                deep_perculation = current_depth - raw
-                current_depth = raw
+                current_depth = previous_depth - etc + pe + irrigation_amount
+
+                taw, raw = readily_available_water_calc(soil_type, root_depth, etc)
+
+                if current_depth > raw:
+                    deep_perculation = current_depth - raw
+                    current_depth = raw
+
+                previous_depth = current_depth
 
 
-            logger.info('Water level file found.')
-            logger.info('Current depth = {value}'.format(value= current_depth)) 
-       
+                logger.info('Current depth = {value}'.format(value= current_depth)) 
+        
         except Exception, e:
             logger.error('Unable to load irrigation data ({error_v}). Exiting...'.format(
                 error_v=e), exc_info=True)
