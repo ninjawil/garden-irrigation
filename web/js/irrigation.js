@@ -23,7 +23,6 @@ function displayIrrigation() {
 	$('#sidebar').show();
 	$('#main').removeClass('col-sm-12').addClass('col-sm-10');
 
-
     // Set up chart screen sections
     $('<div id="chart-section"></div>').appendTo('#graph-container');
     $('<div id="irrig-input-bar-section"></div>').appendTo('#graph-container');
@@ -49,7 +48,7 @@ function getIrrigData(functionCall, args) {
         success: function(config_data) {            
             $.ajax({
                 cache: false,
-                url: 'weather_data/irrigation.json',
+                url: 'irrigation_data/irrigation.json',
                 dataType: "json",
                 success: function(chart_data) {
                     args.push(config_data);
