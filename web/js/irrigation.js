@@ -43,7 +43,7 @@ function getIrrigData(functionCall, args) {
 	
     $.ajax({
         cache: false,
-        url: 'weather_data/config.json',
+        url: 'irrigation_data/config.json',
         dataType: "json",
         success: function(config_data) {            
             $.ajax({
