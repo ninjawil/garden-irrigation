@@ -369,6 +369,9 @@ def main():
 
                 if field_capacity[day+1] > raw[day]:
                     field_capacity[day+1] = raw[day]
+                
+                if field_capacity[day+1] < 0:
+                    field_capacity[day+1] = 0
 
 
         logger.info('Water depth = {value}'.format(value= field_capacity))
