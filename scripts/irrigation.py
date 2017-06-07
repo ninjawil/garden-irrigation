@@ -17,10 +17,10 @@ import math
 
 # Application modules
 import rrd_tools
-import maker_ch
+import toolbox.maker_ch as maker_ch
 import settings as s
-import log
-import check_process
+import toolbox.log as log
+import toolbox.check_process as check_process
 
 
 #===============================================================================
