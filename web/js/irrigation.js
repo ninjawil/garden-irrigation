@@ -21,6 +21,7 @@ function displayIrrigation() {
     $('#graph-container').css('overflowY', 'hidden');
 
 	$('#sidebar').show();
+	$('#header').show();
 	$('#main').removeClass('col-sm-12').addClass('col-sm-10');
 
     // Set up chart screen sections
