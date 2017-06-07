@@ -322,6 +322,9 @@ def main():
                 deep_perculation = current_depth - raw
                 current_depth = raw
 
+            if current_depth < 0: 
+                current_depth = 0
+
 
             logger.info('Water level file found.')
             logger.info('Current depth = {value}'.format(value= current_depth)) 
